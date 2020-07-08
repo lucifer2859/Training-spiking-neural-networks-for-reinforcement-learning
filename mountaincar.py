@@ -14,8 +14,9 @@ class MountainCar:
     def transition_function(self, state, action):
         x = state[0]
         v = state[1]
-        v_n = v + 0.001*action - 0.0025*np.cos(3*x)
+        v_n = v + 0.001 * action - 0.0025 * np.cos(3 * x)
         x_n = x + v_n
+
         if x_n < -1.2:
             x_n = -1.2
             v_n = 0
@@ -33,7 +34,6 @@ class MountainCar:
     def param_state(self, state, weights):
         param_state = 0
         for i in range(len(state)):
-            param_state += state[i]*weights[i]
+            param_state += state[i] * weights[i]
+            
         return param_state
-
-

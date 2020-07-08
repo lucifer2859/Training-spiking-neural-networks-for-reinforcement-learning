@@ -15,36 +15,34 @@ from matplotlib import pyplot as plt
 action_set = {0:"AU", 1:"AD", 2:"AL", 3:"AR"}
 improvement_array = []
 
-
 class GridWorld687:
     def __init__(self):
         current_state = None;
         current_action = None
-        self.array = np.concatenate((np.ones(80), np.ones(5)*2, np.ones(5)*3, np.ones(10)*4))
+        self.array = np.concatenate((np.ones(80), np.ones(5) * 2, np.ones(5) * 3, np.ones(10) * 4))
 
-
-    def transition_function(self, state, action):
+    def transition_function(self, state, action): # 执行动作
         new_state = None
         reward = None
-        if action == "U":
+        if action == "U":   # 上行一步
             if state < 11:
                 new_state = state
             else:
                 new_state = state - 10
 
-        elif action == "D":
+        elif action == "D": # 下行一步
             if state > 90:
                 new_state = state
             else:
                 new_state = state + 10
 
-        elif action == "L":
+        elif action == "L": # 左行一步
             if state % 10 == 1:
                 new_state = state
             else:
                 new_state = state - 1
 
-        elif action == "R":
+        elif action == "R": # 右行一步
             if state % 10 == 0:
                 new_state = state
             else:
@@ -60,12 +58,20 @@ class GridWorld687:
             reward = 10
         else:
             reward = 0
+
         return reward
 
-    def action_from_attempt(self, attempt):
-        #res = np.random.choice(np.arange(1, 5), p=[0.8, 0.05, 0.05, 0.1])
-        res = self.array[random.randint(0, len(self.array)-1)]
-        if attempt == "AU":
+    def action_from_attempt(self, attempt): # 决策
+        '''
+        智能体朝预定方向移动的概率为0.8 (1)
+        智能体偏离预定方向左转的概率为0.05 (2)
+        智能体偏离预定方向右转的概率为0.05 (3)
+        智能体不执行动作的概率为0.1 (4)
+        '''
+        # res = np.random.choice(np.arange(1, 5), p=[0.8, 0.05, 0.05, 0.1])
+        res = self.array[random.randint(0, len(self.array) - 1)]
+
+        if attempt == "AU":   # 预定方向上行
             if res == 1:
                 action = "U"
             elif res == 2:
@@ -75,7 +81,7 @@ class GridWorld687:
             else:
                 action = "N"
 
-        elif attempt == "AD":
+        elif attempt == "AD": # 预定方向下行
             if res == 1:
                 action = "D"
             elif res == 2:
@@ -85,7 +91,7 @@ class GridWorld687:
             else:
                 action = "N"
 
-        elif attempt == "AL":
+        elif attempt == "AL": # 预定方向左行
             if res == 1:
                 action = "L"
             elif res == 2:
@@ -95,7 +101,7 @@ class GridWorld687:
             else:
                 action = "N"
 
-        elif attempt == "AR":
+        elif attempt == "AR": # 预定方向右行
             if res == 1:
                 action = "R"
             elif res == 2:
@@ -107,20 +113,22 @@ class GridWorld687:
 
         return action
 
-
-    def get_discounted_returns(self, rewards, gamma=0.9):
+    def get_discounted_returns(self, rewards, gamma=0.9): # 计算折扣奖励
         discounted_reward = 0
+
         for i in range(len(rewards)):
-            discounted_reward += math.pow(gamma, i)*rewards[i]
+            discounted_reward += math.pow(gamma, i) * rewards[i]
+
         return discounted_reward
 
-    def run_one_episode_random_policy(self, initial_state):
+    def run_one_episode_random_policy(self, initial_state): # 运行一回合随机策略
         states = []
         rewards = []
         actions = []
         state = initial_state
+
         while state != 23:
-            attempt_action = action_set[np.random.choice(np.arange(0,4), 1)[0]]
+            attempt_action = action_set[np.random.choice(np.arange(0, 4), 1)[0]]
             action = self.action_from_attempt(attempt_action)
             new_state = self.transition_function(state, action)
             reward = self.reward_function(new_state)
@@ -128,20 +136,20 @@ class GridWorld687:
             rewards.append(reward)
             actions.append(action)
             state = new_state
+
         return states, rewards, actions
 
-
-
-    def run_epsilon_greedy_policy(self, epsilon, q_func):
+    def run_epsilon_greedy_policy(self, epsilon, q_func): # 运行回合贪婪策略
         states = []
         rewards = []
         actions = []
         state = 1
         count = 0
         action_ind = np.argmax(q_func[state])
+
         while state != 23 and count < 300:
-            prob = (epsilon/4)*np.ones(4)
-            prob[action_ind] = (1 - epsilon) + (epsilon/4)
+            prob = (epsilon / 4) * np.ones(4)
+            prob[action_ind] = (1 - epsilon) + (epsilon / 4)
             attempt = action_set[int(np.random.choice(4, 1, p=prob))]
             action = self.action_from_attempt(attempt)
             new_state = self.transition_function(state, action)
@@ -151,16 +159,16 @@ class GridWorld687:
             state = new_state
             action_ind = new_action_ind
             count += 1
-        return rewards
 
+        return rewards
 
     def get_action_from_state(self, state):
         if state % 10 != 0:
             action = 'AR'
         else:
             action = 'AD'
-        return action
 
+        return action
 
     def run_given_policy(self, initial_state):
         states = []
@@ -174,6 +182,7 @@ class GridWorld687:
                             }
 
         state = initial_state
+
         while state != 100:
             action = self.action_from_attempt(self.get_action_from_state(state))
             new_state = self.transition_function(state, action)
@@ -182,7 +191,5 @@ class GridWorld687:
             rewards.append(reward)
             actions.append(action)
             state = new_state
+
         return states, rewards, actions
-
-
-

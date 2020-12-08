@@ -1,7 +1,8 @@
 #-----------------------------------
 # Author: Sneha Reddy Aenugu
-# Description: Cartpole balancing
-# with spiking agent actor-critic
+# Description: Cartpole balancing with spiking agent actor-critic
+# Memoryless Ising model of spiking neuron
+# PGCN update emulates Hebbian/Anti-Hebbian learning in Ising model of spiking neurons
 #----------------------------------
 
 import numpy as np
@@ -29,16 +30,30 @@ class ActorCritic():
         self.epsilon = epsilon
         self.alpha = step_size
         self.sigma = sigma
-        # self.cartpole = CartPole()
         self.cartpole = gym.make("CartPole-v0")
         self.order = order
         self.lda = 0.5
         self.w = {}
 
-        self.w[-1] = 5*np.ones(int(math.pow(order + 1, num_states)))
-        self.w[1] = 5*np.ones(int(math.pow(order + 1, num_states)))
+        '''
+        self.w (1296 + 1296):
+            {-1: array([5., 5., 5., ..., 5., 5., 5.]),
+              1: array([5., 5., 5., ..., 5., 5., 5.])}
+        '''
+        self.w[-1] = 5 * np.ones(int(math.pow(order + 1, num_states)))
+        self.w[1] = 5 * np.ones(int(math.pow(order + 1, num_states)))
         
-        self.combns = np.array(list(itertools.product(range(order + 1), repeat=num_states)))
+        '''
+        self.combns (1296, 4):
+            array([[0, 0, 0, 0],
+               [0, 0, 0, 1],
+               [0, 0, 0, 2],
+               ...,
+               [5, 5, 5, 3],
+               [5, 5, 5, 4],
+               [5, 5, 5, 5]])
+        '''
+        self.combns = np.array(list(itertools.product(range(order + 1), repeat=num_states))) 
         self.x_lim = [-3, 3]
         self.v_lim = [-10, 10]
         self.theta_lim = [-math.pi / 2, math.pi / 2]
@@ -60,7 +75,6 @@ class ActorCritic():
     def e_greedy_action(self, action_ind):
         prob = (self.epsilon / 2) * np.ones(2)
         prob[action_ind] = (1 - self.epsilon) + (self.epsilon / 2)
-        # e_action = 2 * np.random.choice(2, 1, p=prob) - 1
         pr_array = np.concatenate((np.ones(int(100 * prob[1])), -1 * np.ones(int(100 * prob[0]))))
         e_action = pr_array[random.randint(0, len(pr_array) - 1)]
 
@@ -75,19 +89,13 @@ class ActorCritic():
 
         return int(e_action)
 
-
     def run_actor_critic(self, num_episodes, features='fourier'):
         rewards = []
-        # theta = np.random.rand(self.num_states)
-        # theta = np.zeros(self.num_states)
         theta = np.zeros(int(math.pow(self.order + 1, self.num_states)))
         w_v = np.zeros(int(math.pow(self.order + 1, self.num_states)))
         alpha = 0.001
 
         for i in range(num_episodes):
-            # if i > 500:
-            #    self.alpha = 0.001
-            # state = np.zeros(4)
             state = self.cartpole.reset()
             e_theta = np.zeros_like(theta)
             e_v = np.zeros(int(math.pow(self.order + 1, self.num_states)))
@@ -109,7 +117,7 @@ class ActorCritic():
                 action_rates = np.zeros(2)
 
                 for k in range(2):
-                    action_rates[k] = sum(o_rates[np.where(o_rates[:,k] == 1),k][0])
+                    action_rates[k] = sum(o_rates[np.where(o_rates[:, k] == 1), k][0])
                 action_index = np.argmax(action_rates)
                 action = self.e_greedy_action(action_index)
 
@@ -126,7 +134,8 @@ class ActorCritic():
 
                 # Actor update
                 for k in range(len(self.actors)):
-                    self.actors[k].update_weights(delta_t, state, int((action + 1) / 2), np.mean(rewards[-10:]))
+                    mean_reward = 0 if len(rewards) == 0 else np.mean(rewards[-10:])
+                    self.actors[k].update_weights(delta_t, state, int((action + 1) / 2), mean_reward)
 
                 if done:
                     break
@@ -138,6 +147,7 @@ class ActorCritic():
             rewards.append(count)
 
         return rewards
+
 
 class SpikingActor():
     def __init__(self):
@@ -176,11 +186,11 @@ class SpikingActor():
         self.hz = np.zeros((2, self.hidden))
         self.h_spikes = np.ones((2, self.hidden))
         for i in range(2):
-            z = np.matmul(self.ih_weights[i], inputs)
-            p = 1/(1 + np.exp(-2 * z))
-            self.h_spikes[i] = (p > np.random.rand(self.hidden)).astype(int)
-            self.h_spikes[i] = 2 * self.h_spikes[i] - 1
-            self.hz[i] = 1 + np.exp(2 * z * self.h_spikes[i])
+            z = np.matmul(self.ih_weights[i], inputs) # (-inf, inf)
+            p = 1 / (1 + np.exp(-2 * z)) # (-inf, inf) -> (0, 1)
+            self.h_spikes[i] = (p > np.random.rand(self.hidden)).astype(int) # Poisson
+            self.h_spikes[i] = 2 * self.h_spikes[i] - 1 # {0, 1} -> {-1, 1}
+            self.hz[i] = 1 + np.exp(2 * z * self.h_spikes[i]) # (1, inf)
 
         self.oz = np.zeros(self.outputs)
         self.o_spikes = np.ones(self.outputs)
@@ -195,9 +205,7 @@ class SpikingActor():
         return self.o_spikes
 
     def update_weights(self, tderror, state, action, mean_reward):
-        if mean_reward > 70 and mean_reward < 190:
-            self.alpha = 0.00001
-        elif mean_reward > 190:
+        if mean_reward > 70:
             self.alpha = 0.00001
         else:
             self.alpha = 0.001
@@ -219,6 +227,7 @@ class SpikingActor():
                     self.ho_weights[i] -= self.alpha * tderror * np.multiply(2 * self.o_spikes[i] / self.oz[i], self.h_spikes[i])
                 else:
                     self.ho_weights[i] += self.alpha * tderror * np.multiply(2 * self.o_spikes[i] / self.oz[i], self.h_spikes[i])
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -243,7 +252,7 @@ if __name__ == "__main__":
         rewards_trials.append(rewards)
 
     if args.plot:
-        episodes = np.linspace(0,int(args.num_episodes)-1,int(args.num_episodes))
+        episodes = np.linspace(0, int(args.num_episodes) - 1, int(args.num_episodes))
         rewards_mean = np.mean(rewards_trials, axis=0)
         rewards_std = np.std(rewards_trials, axis=0)
         plt.errorbar(episodes, rewards_mean, rewards_std)

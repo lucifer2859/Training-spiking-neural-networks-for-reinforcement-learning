@@ -1,3 +1,5 @@
+# PGCN learning in mountain car with a memoryless spiking neuron
+
 import numpy as np
 import math
 import argparse
@@ -5,6 +7,7 @@ import itertools
 import random
 from matplotlib import pyplot as plt
 import pdb
+
 
 class MountainCar:
     def __init__(self):
@@ -142,6 +145,7 @@ class ActorCritic:
 
         return rewards
 
+
 class SpikingActor():
     def __init__(self):
         self.inputs = 20
@@ -209,6 +213,7 @@ class SpikingActor():
             if i != action and tderror > 0:
                 for j in range(self.hidden):
                     self.ho_weights[i,j] += self.alpha * tderror * o_grad[i] * self.h_spikes[j]
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

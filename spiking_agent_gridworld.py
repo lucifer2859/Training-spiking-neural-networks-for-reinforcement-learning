@@ -1,7 +1,7 @@
 #-------------------------------------
 # Author: Sneha Reddy Aenugu
-# Description: Solving Gridworld with
-# spiking agent actor-critic
+# Description: Solving Gridworld with spiking agent actor-critic
+# PGCN learning rule for a network of GLM spiking agents
 #------------------------------------
 
 import numpy as np
@@ -17,6 +17,7 @@ np.set_printoptions(precision=2)
 
 action_set = {0:"AU", 1:"AD", 2:"AL", 3:"AR"}
 improvement_array = []
+
 
 # Class for actor-critic module
 class ActorCritic():
@@ -108,6 +109,7 @@ class ActorCritic():
                 print("Discounted Return after %s episodes: %s" % (i, discounted_return))
 
         return returns
+
 
 # Generalized Linear Model of a Spiking Neuron
 # Linear-nonlinear-Poisson cascade neuron model
@@ -211,6 +213,7 @@ class SpikingActor():
                 self.ho[i] += alpha * tderror * self.dho[i]
             elif i != action and self.yo[i] > 0:
                 self.ho[i] -= alpha * tderror * self.dho[i]
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
